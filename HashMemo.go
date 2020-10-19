@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bufio"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/lxn/walk"
 	decl "github.com/lxn/walk/declarative"
@@ -25,6 +28,14 @@ func runMainTable() error {
 			decl.Action{
 				Text:        "🗘refresh",
 				OnTriggered: func() {},
+			},
+			decl.Action{
+				Text: "copy",
+				OnTriggered: func() {
+					if err := walk.Clipboard().SetText(cm.items[tv.CurrentIndex()].Sha3_256); err != nil {
+						log.Print("Copy: ", err)
+					}
+				},
 			},
 		},
 
@@ -133,7 +144,7 @@ func newColModel(dirRoot string) *colModel {
 		name := file.Name()
 		m.items[i] = &col{
 			Name:     name,
-			Sha3_256: checksum(name),
+			Sha3_256: checksumSha256(name),
 			Memo:     "없음",
 			IsDir:    file.IsDir(),
 		}
@@ -141,16 +152,17 @@ func newColModel(dirRoot string) *colModel {
 	return m
 }
 
-func checksum(fileName string) string {
+//체크섬 값이 제대로 나온건지 아래 사이트에서 교차검증 필요
+//https://www.virustotal.com/
+//https://emn178.github.io/online-tools/sha256_checksum.html
+func checksumSha256(fileName string) string {
 	f, err := os.Open(fileName)
 	if err != nil {
 		return err.Error()
 	}
 	defer f.Close()
-
-	h := sha3.New256()
-	_, err = io.Copy(h, f)
-	if err != nil {
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
 		return err.Error()
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))
